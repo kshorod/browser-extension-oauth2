@@ -1,0 +1,11 @@
+.hidden {
+    display: none;
+}
+
+body {
+    width: 700px
+}
+
+input {
+    width: 600px
+}

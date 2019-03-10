@@ -1,0 +1,27 @@
+<!DOCTYPE html>
+<html lang="en">
+
+<head>
+    <meta charset="utf-8" />
+    <title>OAuth</title>
+    <link rel="stylesheet" href="css/style.css" />
+</head>
+
+<body id="home">
+    <p class="field__message"></p>
+    <p>Current hash: <b class="field__hash"></b></p>
+    <p class="status__logged_in">
+        User is logged in. <br />
+        Token: <input type="text" class="status__token" readonly /><br />
+        Expiration time: <input type="text" class="status__expiration" readonly /><br />,
+        <a href="#" class="action__log_out">Log out</a>
+        <a href="#" class="action__silent_refresh">Refresh silently</a>
+    </p>
+    <p class="status__logged_out">User is logged out.
+        <a href="#" class="action__log_in">Log in</a>
+    </p>
+
+    <script src="js/script.js"></script>
+</body>
+
+</html>

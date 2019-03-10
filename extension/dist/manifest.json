@@ -1,0 +1,42 @@
+{
+    "manifest_version": 2,
+    "name": "browser-extension-refresh",
+    "short_name": "ber",
+    "version": "1.0",
+    "description": "Extension that shows a way to refresh oauth tokens.",
+    "browser_specific_settings": {
+        "gecko": {
+            "id": "browser-extension-refresh",
+            "strict_min_version": "48.0"
+        }
+    },
+    "icons": {
+        "16": "assets/logo.jpg",
+        "128": "assets/logo.jpg"
+    },
+    "author": "...",
+    "content_security_policy": "script-src 'self' 'unsafe-eval'; object-src 'self'",
+    "browser_action": {
+        "default_icon": {
+            "16": "assets/logo.jpg",
+            "128": "assets/logo.jpg"
+        },
+        "default_title": "OAuth Refresh Test",
+        "default_popup": "index.html"
+    },
+    "web_accessible_resources": [
+        "js/*"
+    ],
+    "permissions": [
+        "storage",
+        "tabs",
+        "webNavigation",
+        "https://random_not_existing_url.local.somewhere"
+    ],
+    "background": {
+        "scripts": [
+            "js/background.js"
+        ],
+        "persistent": false
+    }
+}
