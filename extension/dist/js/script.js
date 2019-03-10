@@ -1,7 +1,7 @@
 function getBrowserApi() {
-    if (typeof browser !== 'undefined' && browser) {
+    if (window.browser) {
         return browser;
-    } else if (typeof chrome !== 'undefined' && chrome) {
+    } else if (window.chrome) {
         return {
             ...chrome,
             storage: {
