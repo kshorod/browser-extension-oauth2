@@ -1,7 +1,7 @@
-function browserApi() {
-    if (typeof browser !== 'undefined' && browser) {
+function getBrowserApi() {
+    if (window.browser) {
         return browser;
-    } else if (typeof chrome !== 'undefined' && chrome) {
+    } else if (window.chrome) {
         return {
             ...chrome,
             storage: {
@@ -22,72 +22,68 @@ function browserApi() {
     }
     throw new Error("unknown user agent");
 }
+const browserApi = getBrowserApi();
 
-
-
-chrome.runtime.onMessage.addListener(function (message, sender, callback) {
+browserApi.runtime.onMessage.addListener(function (message, sender, callback) {
     switch (message.operation) {
         case 'login':
-            initLogIn(message.url);
-            break;
+            return initLogIn(message.url);
         case 'refresh':
-            initSilentRefresh(message.url);
-            break;
+            return initSilentRefresh(message.url);
     }
 });
 
-
 function initLogIn(url) {
-    let properties = {
-        url: url,
+    const properties = {
+        url,
         active: true,
     };
-    chrome.tabs.create(properties);
+    browserApi.tabs.create(properties);
 }
 
 function initSilentRefresh(url) {
-    let properties = {
-        url: url,
+    const properties = {
+        url,
         active: false,
     };
-    chrome.tabs.create(properties);
+    browserApi.tabs.create(properties);
 }
 
-chrome.webNavigation.onErrorOccurred.addListener(function (details) {
-    var hash = details.url.split('#')[1];
-
-    var result = hash.split('&').reduce(function (result, item) {
-        var parts = item.split('=');
+function extractHashParametersFromUrl(url) {
+    const hash = url.split('#')[1];
+    return hash.split('&').reduce((result, item) => {
+        let parts = item.split('=');
         result[parts[0]] = parts[1];
         return result;
     }, {});
+}
 
-    // warning: there is no error handling here
-
-    if ("error" in result) {
+browserApi.webNavigation.onErrorOccurred.addListener(function (details) {
+    const result = extractHashParametersFromUrl(details.url);
+    if (result.error) {
         // we have an error
-        let errorData = {
+        const errorData = {
             error: result.error,
             description: result.error_description,
             state: result.state
         }
-        // since we have no handling, don't do anything
+        // since we have no error handling, don't do anything
         return;
     }
 
-    let data = {
+    const data = {
         token: result['id_token'], // or access_token
         exp: new Date().toString(),
         state: result.state
     };
-    chrome.storage.local.set(data, function () {
-        chrome.runtime.sendMessage({ operation: 'loggedIn' });
+
+    browserApi.storage.local.set(data).then(function () {
+        browserApi.runtime.sendMessage({ operation: 'loggedIn' });
         // use settimeout for debugging, or the tab will be closed almost instantly
         //setTimeout(function () {
-        chrome.tabs.remove(details.tabId);
+        browserApi.tabs.remove(details.tabId);
         //}, 500);
     });
-
 }, {
         url: [{
             hostEquals: 'random.not.existing.url.local.somewhere'

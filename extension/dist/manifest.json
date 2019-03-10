@@ -6,7 +6,7 @@
     "description": "Extension that shows a way to refresh oauth tokens.",
     "browser_specific_settings": {
         "gecko": {
-            "id": "browser-extension-refresh",
+            "id": "browser-extension-refresh@kshorod",
             "strict_min_version": "48.0"
         }
     },
@@ -14,7 +14,7 @@
         "16": "assets/logo.jpg",
         "128": "assets/logo.jpg"
     },
-    "author": "...",
+    "author": "kshorod",
     "content_security_policy": "script-src 'self' 'unsafe-eval'; object-src 'self'",
     "browser_action": {
         "default_icon": {
@@ -30,8 +30,7 @@
     "permissions": [
         "storage",
         "tabs",
-        "webNavigation",
-        "https://random_not_existing_url.local.somewhere"
+        "webNavigation"
     ],
     "background": {
         "scripts": [

@@ -1,58 +1,4 @@
-class TokenStorage {
-
-    constructor() {
-        this.storageKeys = {
-            token: 'token',
-            expiration: 'exp',
-            all: ['token', 'exp']
-        };
-    }
-
-    async tokenExists() {
-        const data = await browserApi().storage.local.get(this.storageKeys.all);
-        return !!data[this.storageKeys.token] && !!data[this.storageKeys.expiration];
-    }
-
-    async getTokenWithExpiration() {
-        const data = await browserApi().storage.local.get(this.storageKeys.all);
-        return data;
-    }
-
-    async saveToken(token, expiration) {
-        const data = {
-            [this.storageKeys.token]: token,
-            [this.storageKeys.expiration]: expiration
-        };
-
-        await browserApi().storage.local.set(data);
-    }
-
-    async clearToken() {
-        await browserApi().storage.local.remove(this.storageKeys.all);
-    }
-}
-
-class UI {
-
-    setUI(authState) {
-        document.querySelector('.status__logged_in').classList.remove('hidden');
-        document.querySelector('.status__logged_out').classList.remove('hidden');
-
-        if (authState.loggedIn) {
-            document.querySelector('.status__logged_out').classList.add('hidden');
-            document.querySelector('.status__token').value = authState.token;
-            document.querySelector('.status__expiration').value = authState.expiration.toString();
-        } else {
-            document.querySelector('.status__logged_in').classList.add('hidden');
-        }
-    }
-
-    showMessage(message) {
-        document.querySelector('.field__message').textContent = message;
-    }
-}
-
-function browserApi() {
+function getBrowserApi() {
     if (typeof browser !== 'undefined' && browser) {
         return browser;
     } else if (typeof chrome !== 'undefined' && chrome) {
@@ -75,6 +21,61 @@ function browserApi() {
         };
     }
     throw new Error("unknown user agent");
+}
+const browserApi = getBrowserApi();
+
+class TokenStorage {
+
+    constructor() {
+        this.storageKeys = {
+            token: 'token',
+            expiration: 'exp',
+            state: 'state',
+            all: ['token', 'exp', 'state']
+        };
+    }
+
+    async tokenExists() {
+        const data = await this.getTokenWithExpiration();
+        return !!data[this.storageKeys.token] && !!data[this.storageKeys.expiration];
+    }
+
+    async getTokenWithExpiration() {
+        return await browserApi.storage.local.get(this.storageKeys.all);
+    }
+
+    async saveToken(token, expiration) {
+        const data = {
+            [this.storageKeys.token]: token,
+            [this.storageKeys.expiration]: expiration
+        };
+
+        await browserApi.storage.local.set(data);
+    }
+
+    async clearToken() {
+        await browserApi.storage.local.remove(this.storageKeys.all);
+    }
+}
+
+class UI {
+
+    setUI(authState) {
+        document.querySelector('.status__logged_in').classList.remove('hidden');
+        document.querySelector('.status__logged_out').classList.remove('hidden');
+
+        if (authState.loggedIn) {
+            document.querySelector('.status__logged_out').classList.add('hidden');
+            document.querySelector('.status__token').value = authState.token;
+            document.querySelector('.status__expiration').value = authState.expiration.toString();
+        } else {
+            document.querySelector('.status__logged_in').classList.add('hidden');
+        }
+    }
+
+    showMessage(message) {
+        document.querySelector('.field__message').textContent = message;
+    }
 }
 
 class Auth {
@@ -104,13 +105,13 @@ class Auth {
         &nonce=${config.nonce}`.replace(/\s/g, '');
     }
 
-    getLoginUrl() {
+    get loginUrl() {
         return this._generateAuthorizationUrl({
             ...this.defaultAuthorizationParameters,
             prompt: "select_account"
         })
     }
-    getRefreshUrl() {
+    get refreshUrl() {
         return this._generateAuthorizationUrl({
             ...this.defaultAuthorizationParameters,
             prompt: "none"
@@ -137,13 +138,11 @@ class Auth {
     }
 
     logIn() {
-        const loginUrl = this.getLoginUrl();
-        browserApi().runtime.sendMessage({ operation: 'login', url: loginUrl });
+        browserApi.runtime.sendMessage({ operation: 'login', url: this.loginUrl });
     }
 
     refresh() {
-        const refreshUrl = this.getRefreshUrl();
-        browserApi().runtime.sendMessage({ operation: 'refresh', url: refreshUrl });
+        browserApi.runtime.sendMessage({ operation: 'refresh', url: this.refreshUrl });
     }
 
     async logOut() {
@@ -159,9 +158,13 @@ class Controller {
     }
 
     async init() {
+        await this._reloadAuthUI();
+        this.setUpListeners();
+    }
+
+    async _reloadAuthUI() {
         const authState = await this.auth.getAuthState();
         this.ui.setUI(authState);
-        this.setUpListeners();
     }
 
     _logInAction() {
@@ -174,8 +177,7 @@ class Controller {
 
     async _logOutAction() {
         this.auth.logOut();
-        const authState = await this.auth.getAuthState();
-        this.ui.setUI(authState)
+        await this._reloadAuthUI();
     }
 
     setUpListeners() {
@@ -183,18 +185,17 @@ class Controller {
         document.querySelector('.action__silent_refresh').addEventListener('click', this._refreshAction.bind(this));
         document.querySelector('.action__log_out').addEventListener('click', this._logOutAction.bind(this));
 
-        chrome.runtime.onMessage.addListener(function (message, sender, callback) {
+        browserApi.runtime.onMessage.addListener(function (message, sender, callback) {
             switch (message.operation) {
                 case 'loggedIn':
-                    this.onLoginSuccess(message.data);
+                    this.onLoginSuccess();
                     break;
             }
         }.bind(this));
     }
 
-    async onLoginSuccess(data) {
-        const authState = await this.auth.getAuthState();
-        this.ui.setUI(authState)
+    async onLoginSuccess() {
+        await this._reloadAuthUI();
     }
 }
 
