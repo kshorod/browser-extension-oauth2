@@ -1,26 +1,43 @@
+class TokenStorage {
 
-class AuthState {
-    loggedIn;
-    token;
-    expiration;
-}
+    constructor() {
+        this.storageKeys = {
+            token: 'token',
+            expiration: 'exp',
+            all: ['token', 'exp']
+        };
+    }
 
-function isEmpty(str) {
-    return (!str || 0 === str.length);
+    async tokenExists() {
+        const data = await browserApi().storage.local.get(this.storageKeys.all);
+        return !!data[this.storageKeys.token] && !!data[this.storageKeys.expiration];
+    }
+
+    async getTokenWithExpiration() {
+        const data = await browserApi().storage.local.get(this.storageKeys.all);
+        return data;
+    }
+
+    async saveToken(token, expiration) {
+        const data = {
+            [this.storageKeys.token]: token,
+            [this.storageKeys.expiration]: expiration
+        };
+
+        await browserApi().storage.local.set(data);
+    }
+
+    async clearToken() {
+        await browserApi().storage.local.remove(this.storageKeys.all);
+    }
 }
 
 class UI {
-    setup(logInCallback, refreshCallback, logoutCallback) {
-        document.querySelector('.action__log_in').addEventListener('click', logInCallback);
-        document.querySelector('.action__silent_refresh').addEventListener('click', refreshCallback);
-        document.querySelector('.action__log_out').addEventListener('click', logoutCallback);
-    }
 
     setUI(authState) {
         document.querySelector('.status__logged_in').classList.remove('hidden');
         document.querySelector('.status__logged_out').classList.remove('hidden');
 
-        document.querySelector('.field__hash').textContent = window.location.hash;
         if (authState.loggedIn) {
             document.querySelector('.status__logged_out').classList.add('hidden');
             document.querySelector('.status__token').value = authState.token;
@@ -28,7 +45,6 @@ class UI {
         } else {
             document.querySelector('.status__logged_in').classList.add('hidden');
         }
-
     }
 
     showMessage(message) {
@@ -61,133 +77,112 @@ function browserApi() {
     throw new Error("unknown user agent");
 }
 
-class TokenStorage {
-
-    storageKeys = {
-        token: 'token',
-        expiration: 'exp',
-        all: ['token', 'exp']
-    };
-
-    async tokenExists() {
-        let data = await browserApi().storage.local.get(this.storageKeys.all);
-        return !isEmpty(data[this.storageKeys.token]) && !isEmpty(data[this.storageKeys.expiration]);
-    }
-    tokenIsValid() {
-    }
-    async getTokenWithExpiration() {
-        let data = await browserApi().storage.local.get(this.storageKeys.all);
-        return data;
-    }
-    async saveToken(token, expiration) {
-        let data = {};
-        data[this.storageKeys.token] = token;
-        data[this.storageKeys.expiration] = expiration;
-        await browserApi().storage.local.set(data);
-    }
-    async clearToken() {
-        await browserApi().storage.local.remove(this.storageKeys.all);
-    }
-}
-
 class Auth {
 
-    config = {
-        url: `https://login.microsoftonline.com/{tenant}/oauth2/v2.0/authorize?
-        client_id={client_id}
-        &response_type=id_token
-        &redirect_uri={redirect_uri}
-        &scope={scope}
-        &response_mode=fragment
-        &prompt={prompt}
-        &state=12345
-        &nonce=678910`.replace(/\s/g, ''),
-        tenant: 'consumers',
-        clientId: '##############################ENTER_CLIENT_ID_HERE############################',
-        openIdScopes: 'openid email profile',
-        redirectUri: 'https://random.not.existing.url.local.somewhere',
-        regularPrompt: "select_account",
-        silentPrompt: "none",
-        getLoginUrl: function () {
-            return this.url
-                .replace('{client_id}', this.clientId)
-                .replace('{tenant}', this.tenant)
-                .replace('{prompt}', this.regularPrompt)
-                .replace('{scope}', encodeURIComponent(this.openIdScopes))
-                .replace('{redirect_uri}', encodeURIComponent(this.redirectUri));
-        },
-        getRefreshUrl: function () {
-            return this.url
-                .replace('{client_id}', this.clientId)
-                .replace('{tenant}', this.tenant)
-                .replace('{prompt}', this.silentPrompt)
-                .replace('{scope}', encodeURIComponent(this.openIdScopes))
-                .replace('{redirect_uri}', encodeURIComponent(this.redirectUri));
-        }
-    };
+    constructor(tokenStore) {
+        this.tokenStore = tokenStore;
+        this.defaultAuthorizationParameters = {
+            clientId: '####ENTER_YOUR_CLIENT_ID_HERE####',
+            tenant: 'consumers',
+            scope: 'openid email profile',
+            responseType: 'id_token',
+            redirectUri: 'https://random.not.existing.url.local.somewhere',
+            state: 12345,
+            nonce: 456789 // generate state and nonce instead of hardcoded
+        };
+    }
 
-    constructor() {
-        this.tokenStore = new TokenStorage();
+    _generateAuthorizationUrl(config) {
+        return `https://login.microsoftonline.com/${config.tenant}/oauth2/v2.0/authorize?
+        client_id=${config.clientId}
+        &response_type=${encodeURIComponent(config.responseType)}
+        &redirect_uri=${encodeURIComponent(config.redirectUri)}
+        &scope=${encodeURIComponent(config.scope)}
+        &response_mode=fragment
+        &prompt=${config.prompt}
+        &state=${config.state}
+        &nonce=${config.nonce}`.replace(/\s/g, '');
+    }
+
+    getLoginUrl() {
+        return this._generateAuthorizationUrl({
+            ...this.defaultAuthorizationParameters,
+            prompt: "select_account"
+        })
+    }
+    getRefreshUrl() {
+        return this._generateAuthorizationUrl({
+            ...this.defaultAuthorizationParameters,
+            prompt: "none"
+        })
     }
 
     async getAuthState() {
-        let tokenExists = await this.tokenStore.tokenExists();
-        if (tokenExists) {
-            let data = await this.tokenStore.getTokenWithExpiration();
-
-            return {
-                loggedIn: true,
-                token: data[this.tokenStore.storageKeys.token],
-                expiration: data[this.tokenStore.storageKeys.expiration]
-            }
-        } else {
+        const tokenExists = await this.tokenStore.tokenExists();
+        if (!tokenExists) {
             return {
                 loggedIn: false,
                 token: null,
                 expiration: 0
             };
         }
-    }
 
+        const data = await this.tokenStore.getTokenWithExpiration();
+
+        return {
+            loggedIn: true,
+            token: data[this.tokenStore.storageKeys.token],
+            expiration: data[this.tokenStore.storageKeys.expiration]
+        }
+    }
 
     logIn() {
-        var loginUrl = this.config.getLoginUrl();
+        const loginUrl = this.getLoginUrl();
         browserApi().runtime.sendMessage({ operation: 'login', url: loginUrl });
     }
+
     refresh() {
-        var refreshUrl = this.config.getRefreshUrl();
+        const refreshUrl = this.getRefreshUrl();
         browserApi().runtime.sendMessage({ operation: 'refresh', url: refreshUrl });
     }
+
     async logOut() {
         await this.tokenStore.clearToken();
     }
 }
 
 class Controller {
+
     constructor(ui, auth) {
         this.ui = ui;
         this.auth = auth;
     }
+
     async init() {
-        this.ui.setup(this.logInAction.bind(this), this.refreshAction.bind(this), this.logOutAction.bind(this));
-        var authState = await this.auth.getAuthState();
+        const authState = await this.auth.getAuthState();
         this.ui.setUI(authState);
         this.setUpListeners();
     }
-    logInAction() {
+
+    _logInAction() {
         this.auth.logIn();
     }
-    refreshAction() {
+
+    _refreshAction() {
         this.auth.refresh();
     }
-    async logOutAction() {
+
+    async _logOutAction() {
         this.auth.logOut();
-        let authState = await this.auth.getAuthState();
+        const authState = await this.auth.getAuthState();
         this.ui.setUI(authState)
     }
 
-
     setUpListeners() {
+        document.querySelector('.action__log_in').addEventListener('click', this._logInAction.bind(this));
+        document.querySelector('.action__silent_refresh').addEventListener('click', this._refreshAction.bind(this));
+        document.querySelector('.action__log_out').addEventListener('click', this._logOutAction.bind(this));
+
         chrome.runtime.onMessage.addListener(function (message, sender, callback) {
             switch (message.operation) {
                 case 'loggedIn':
@@ -198,10 +193,10 @@ class Controller {
     }
 
     async onLoginSuccess(data) {
-        let authState = await this.auth.getAuthState();
+        const authState = await this.auth.getAuthState();
         this.ui.setUI(authState)
     }
 }
 
-var controller = new Controller(new UI(), new Auth());
+const controller = new Controller(new UI(), new Auth(new TokenStorage()));
 controller.init();

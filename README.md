@@ -41,9 +41,9 @@ I redirect the token response to a webpage that does not exist and catch it with
 Refactoring to make code more readable, some basic security (state checking), retrieving access token from the provider to access an actual API, ID token parsing, automatic refresh when token is about to expire (would apply to the access token, not ID token), also expiration time is a lie (shows current date instead)
 
 ## Resources
-https://developer.chrome.com/extensions/getstarted
-https://developer.chrome.com/extensions/runtime#method-sendMessage
-https://developer.chrome.com/extensions/tabs#method-create
-https://developer.chrome.com/extensions/webNavigation#event-onErrorOccurred
-https://developer.mozilla.org/en-US/docs/Mozilla/Add-ons/WebExtensions/API/events/UrlFilter
-https://docs.microsoft.com/en-us/azure/active-directory/develop/v2-oauth2-implicit-grant-flow 
+* https://developer.chrome.com/extensions/getstarted
+* https://developer.chrome.com/extensions/runtime#method-sendMessage
+* https://developer.chrome.com/extensions/tabs#method-create
+* https://developer.chrome.com/extensions/webNavigation#event-onErrorOccurred
+* https://developer.mozilla.org/en-US/docs/Mozilla/Add-ons/WebExtensions/API/events/UrlFilter
+* https://docs.microsoft.com/en-us/azure/active-directory/develop/v2-oauth2-implicit-grant-flow 

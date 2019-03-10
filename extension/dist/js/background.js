@@ -62,10 +62,23 @@ chrome.webNavigation.onErrorOccurred.addListener(function (details) {
         return result;
     }, {});
 
+    // warning: there is no error handling here
+
+    if ("error" in result) {
+        // we have an error
+        let errorData = {
+            error: result.error,
+            description: result.error_description,
+            state: result.state
+        }
+        // since we have no handling, don't do anything
+        return;
+    }
+
     let data = {
-        token: result['id_token'],
+        token: result['id_token'], // or access_token
         exp: new Date().toString(),
-        state: result['state']
+        state: result.state
     };
     chrome.storage.local.set(data, function () {
         chrome.runtime.sendMessage({ operation: 'loggedIn' });
